@@ -6,7 +6,7 @@ import { ethers } from 'ethers';
 const StateContext = createContext();
 
 export const StateContextProvider = ({ children }) => {
-    const { contract } = useContract('0x6014137f2205fBbC1E591a0bE2d149A9bAEf58F8')
+    const { contract } = useContract('0x779B4681A20DC095BaB8303D0Bc25BDf9bd7109f')
     const { mutateAsync: createCampaign } = 
     useContractWrite(contract, 'createCampaign');
 
@@ -31,7 +31,53 @@ export const StateContextProvider = ({ children }) => {
 
     const getCampaigns = async () => {
         const campaigns = await contract.call('getCampaigns');
-        console.log(campaigns)
+        const parsedCampaigns = campaigns.map((campaign, i) => ({
+            owner: campaign.owner,
+            title: campaign.title,
+            description: campaign.description,
+            target: ethers.utils.formatEther(campaign.target.toString()),
+            deadline: campaign.deadline.toNumber(),
+            amountCollected: ethers.utils.formatEther(campaign.amountCollected.toString()),
+            image: campaign.image,
+            pId: i
+        }));
+
+        return parsedCampaigns;
+    }
+
+    const getUserCampaigns = async () => {
+        const allCampaigns = await getCampaigns();
+
+        const filteredCampaigns = allCampaigns.filter((campaign) => 
+        campaign.owner === address);
+
+        return filteredCampaigns;
+        
+    }
+
+    const donate = async (pId, amount) => {
+        const data = await contract.call('donateToCampaign', pId, {
+            value:ethers.utils.parseEther(amount)
+        });
+        
+        return data;
+    }
+
+    const getDonations = async (pId) => {
+        const donations = await contract.call('getDonators', pId);
+        const numberOfDonations = donations[0].length;
+
+        const parsedDonations = [];
+
+        for (let i = 0; i < numberOfDonations; i++) {
+            parsedDonations.push({
+                donator: donations[0][i],
+                donation:ethers.utils.formatEther(donations[1][i].toString())
+            })
+        }
+        
+        return parsedDonations;
+
     }
 
     return (
@@ -42,6 +88,9 @@ export const StateContextProvider = ({ children }) => {
                 connect,
                 createCampaign: publishCampaign,
                 getCampaigns,
+                getUserCampaigns,
+                donate,
+                getDonations,
             }} 
         >
             {children}
